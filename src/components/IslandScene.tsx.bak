@@ -1,0 +1,279 @@
+import { useEffect, useRef } from 'react';
+import * as THREE from 'three';
+
+interface IslandSceneProps {
+  scrollProgress: number;
+}
+
+interface IslandData {
+  position: THREE.Vector3;
+  color: number;
+  accentColor: number;
+  image: string;
+  mesh?: THREE.Group;
+}
+
+const ISLANDS: IslandData[] = [
+  { position: new THREE.Vector3(-6, 0, 0), color: 0x2a3a5a, accentColor: 0x4ECDC4, image: '/images/lore-island.jpg' },
+  { position: new THREE.Vector3(-3, -0.5, -1), color: 0x3a2a5a, accentColor: 0x7B68EE, image: '/images/creatures-island.jpg' },
+  { position: new THREE.Vector3(0, 0, 0), color: 0x2a4a4a, accentColor: 0xD4AF37, image: '/images/gameplay-island.jpg' },
+  { position: new THREE.Vector3(3, -0.3, -1), color: 0x3a3a5a, accentColor: 0x4ECDC4, image: '/images/gallery-1.jpg' },
+  { position: new THREE.Vector3(6, 0.5, 0), color: 0x4a3a2a, accentColor: 0xD4AF37, image: '/images/roadmap-bg.jpg' },
+];
+
+export default function IslandScene({ scrollProgress }: IslandSceneProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const islandGroupsRef = useRef<THREE.Group[]>([]);
+  const frameRef = useRef(0);
+  const scrollRef = useRef(scrollProgress);
+
+  useEffect(() => {
+    scrollRef.current = scrollProgress;
+  }, [scrollProgress]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Scene setup
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x050508, 0.03);
+    sceneRef.current = scene;
+
+    // Camera
+    const camera = new THREE.PerspectiveCamera(
+      45,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      100
+    );
+    camera.position.set(0, 2, 18);
+    cameraRef.current = camera;
+
+    // Renderer
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x050508, 1);
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
+    renderer.domElement.style.display = 'block';
+    container.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0x404080, 0.5);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(5, 10, 5);
+    scene.add(directionalLight);
+
+    const pointLight = new THREE.PointLight(0x4ECDC4, 1, 20);
+    pointLight.position.set(0, 5, 0);
+    scene.add(pointLight);
+
+    // Create island meshes
+    const textureLoader = new THREE.TextureLoader();
+    const islandGroups: THREE.Group[] = [];
+
+    ISLANDS.forEach((island, index) => {
+      const group = new THREE.Group();
+      group.position.copy(island.position);
+
+      // Load island texture as background plate
+      textureLoader.load(island.image, (texture) => {
+        texture.colorSpace = THREE.SRGBColorSpace;
+
+        // Create floating island base - a disk
+        const baseGeometry = new THREE.CylinderGeometry(1.5, 1.2, 0.4, 32);
+        const baseMaterial = new THREE.MeshStandardMaterial({
+          color: island.color,
+          roughness: 0.8,
+          metalness: 0.2,
+        });
+        const base = new THREE.Mesh(baseGeometry, baseMaterial);
+        base.position.y = -0.2;
+        group.add(base);
+
+        // Add image plane above the island
+        const imgAspect = 16 / 9;
+        const planeHeight = 2.5;
+        const planeWidth = planeHeight * imgAspect;
+        const planeGeometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
+        const planeMaterial = new THREE.MeshBasicMaterial({
+          map: texture,
+          transparent: true,
+          opacity: 0.95,
+          side: THREE.DoubleSide,
+        });
+        const imagePlane = new THREE.Mesh(planeGeometry, planeMaterial);
+        imagePlane.position.y = 1.5;
+        imagePlane.rotation.x = -0.1;
+        group.add(imagePlane);
+
+        // Floating rock debris around island
+        for (let i = 0; i < 8; i++) {
+          const rockSize = 0.05 + Math.random() * 0.15;
+          const rockGeom = new THREE.DodecahedronGeometry(rockSize, 0);
+          const rockMat = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(island.color).multiplyScalar(0.7 + Math.random() * 0.3),
+            roughness: 0.9,
+          });
+          const rock = new THREE.Mesh(rockGeom, rockMat);
+          const angle = (i / 8) * Math.PI * 2 + Math.random() * 0.5;
+          const radius = 1.8 + Math.random() * 1.5;
+          rock.position.set(
+            Math.cos(angle) * radius,
+            Math.random() * 2 - 0.5,
+            Math.sin(angle) * radius
+          );
+          rock.userData = {
+            orbitAngle: angle,
+            orbitRadius: radius,
+            orbitSpeed: 0.2 + Math.random() * 0.5,
+            bobPhase: Math.random() * Math.PI * 2,
+            bobSpeed: 0.5 + Math.random() * 1,
+          };
+          group.add(rock);
+        }
+
+        // Accent glow light
+        const glowLight = new THREE.PointLight(island.accentColor, 0.5, 5);
+        glowLight.position.y = 1;
+        group.add(glowLight);
+
+        // Initial scale animation
+        group.scale.set(0, 0, 0);
+        const targetScale = 1;
+        const delay = index * 0.3;
+        let scaleTime = 0;
+        const animateScale = () => {
+          scaleTime += 0.016;
+          if (scaleTime > delay) {
+            const t = Math.min(1, (scaleTime - delay) / 1.5);
+            const easeT = 1 - Math.pow(1 - t, 3);
+            const s = easeT * targetScale;
+            group.scale.set(s, s, s);
+          }
+          if (group.scale.x < targetScale) {
+            requestAnimationFrame(animateScale);
+          }
+        };
+        animateScale();
+      });
+
+      scene.add(group);
+      islandGroups.push(group);
+    });
+
+    islandGroupsRef.current = islandGroups;
+
+    // Background stars
+    const starsGeometry = new THREE.BufferGeometry();
+    const starsCount = 2000;
+    const positions = new Float32Array(starsCount * 3);
+    for (let i = 0; i < starsCount * 3; i += 3) {
+      positions[i] = (Math.random() - 0.5) * 100;
+      positions[i + 1] = (Math.random() - 0.5) * 100;
+      positions[i + 2] = (Math.random() - 0.5) * 100;
+    }
+    starsGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const starsMaterial = new THREE.PointsMaterial({
+      color: 0xffffff,
+      size: 0.05,
+      transparent: true,
+      opacity: 0.6,
+    });
+    const stars = new THREE.Points(starsGeometry, starsMaterial);
+    scene.add(stars);
+
+    // Animation loop
+    const clock = new THREE.Clock();
+
+    function animate() {
+      frameRef.current = requestAnimationFrame(animate);
+      const elapsed = clock.getElapsedTime();
+      const scroll = scrollRef.current;
+
+      // Camera follows scroll progress along island positions
+      const totalIslands = ISLANDS.length;
+      const islandIndex = Math.min(totalIslands - 1, scroll * totalIslands);
+      const islandIdx = Math.floor(islandIndex);
+      const islandFrac = islandIndex - islandIdx;
+
+      // Interpolate camera position
+      let targetX: number, targetZ: number;
+      if (islandIdx < totalIslands - 1) {
+        const curr = ISLANDS[islandIdx].position;
+        const next = ISLANDS[islandIdx + 1].position;
+        targetX = curr.x + (next.x - curr.x) * islandFrac;
+        targetZ = 6 + Math.sin(islandFrac * Math.PI) * 4;
+      } else {
+        targetX = ISLANDS[totalIslands - 1].position.x;
+        targetZ = 6;
+      }
+
+      // Smooth camera
+      camera.position.x += (targetX * 0.5 - camera.position.x) * 0.03;
+      camera.position.z += (targetZ - camera.position.z) * 0.03;
+      camera.position.y = 2 + Math.sin(elapsed * 0.3) * 0.3;
+      camera.lookAt(camera.position.x, 0.5, 0);
+
+      // Animate islands
+      islandGroups.forEach((group, i) => {
+        // Bob
+        group.position.y = ISLANDS[i].position.y + Math.sin(elapsed * 0.8 + i * 1.5) * 0.1;
+        // Slow rotation
+        group.rotation.y = Math.sin(elapsed * 0.15 + i) * 0.05;
+
+        // Animate orbiting rocks
+        group.children.forEach((child) => {
+          if (child.userData.orbitAngle !== undefined) {
+            child.userData.orbitAngle += child.userData.orbitSpeed * 0.005;
+            child.position.x = Math.cos(child.userData.orbitAngle) * child.userData.orbitRadius;
+            child.position.z = Math.sin(child.userData.orbitAngle) * child.userData.orbitRadius;
+            child.position.y += Math.sin(elapsed * child.userData.bobSpeed + child.userData.bobPhase) * 0.002;
+            child.rotation.x += 0.005;
+            child.rotation.y += 0.003;
+          }
+        });
+      });
+
+      // Rotate stars slowly
+      stars.rotation.y += 0.0002;
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // Resize handler
+    function onResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+    window.addEventListener('resize', onResize);
+
+    return () => {
+      cancelAnimationFrame(frameRef.current);
+      window.removeEventListener('resize', onResize);
+      renderer.dispose();
+      if (container.contains(renderer.domElement)) {
+        container.removeChild(renderer.domElement);
+      }
+    };
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className="fixed inset-0"
+      style={{ zIndex: 1 }}
+    />
+  );
+}

@@ -1,0 +1,133 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --deep-space: #050508;
+    --abyssal: #0A0A12;
+    --midnight: #14142B;
+    --ethereal-blue: #4ECDC4;
+    --mystic-violet: #7B68EE;
+    --arcane-gold: #D4AF37;
+    --pure-white: #F0F0F5;
+    --pale-silver: #A0A0B0;
+    --neon-cyan: #00F5FF;
+    --crimson-soul: #FF3366;
+    --background: 240 33% 2%;
+    --foreground: 240 10% 96%;
+    --card: 240 33% 8%;
+    --card-foreground: 240 10% 96%;
+    --popover: 240 33% 5%;
+    --popover-foreground: 240 10% 96%;
+    --primary: 174 60% 55%;
+    --primary-foreground: 240 33% 2%;
+    --secondary: 252 73% 67%;
+    --secondary-foreground: 240 10% 96%;
+    --muted: 240 20% 15%;
+    --muted-foreground: 240 10% 69%;
+    --accent: 43 60% 52%;
+    --accent-foreground: 240 33% 2%;
+    --destructive: 346 100% 60%;
+    --destructive-foreground: 240 10% 96%;
+    --border: 240 20% 15%;
+    --input: 240 20% 15%;
+    --ring: 174 60% 55%;
+    --radius: 0.25rem;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+
+  body {
+    background-color: var(--deep-space);
+    color: var(--pure-white);
+    font-family: 'Inter', sans-serif;
+    font-weight: 300;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 300;
+  }
+
+  ::selection {
+    background-color: rgba(78, 205, 196, 0.3);
+    color: var(--pure-white);
+  }
+
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--deep-space);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(160, 160, 176, 0.3);
+    border-radius: 2px;
+  }
+}
+
+@layer components {
+  .font-display {
+    font-family: 'Cormorant Garamond', serif;
+  }
+
+  .font-body {
+    font-family: 'Inter', sans-serif;
+  }
+
+  .font-mono-label {
+    font-family: 'Space Mono', monospace;
+  }
+
+  .text-glow {
+    text-shadow: 0 0 40px rgba(78, 205, 196, 0.3);
+  }
+
+  .text-glow-gold {
+    text-shadow: 0 0 40px rgba(212, 175, 55, 0.3);
+  }
+
+  .glass-card {
+    background: rgba(20, 20, 43, 0.6);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .nav-link-underline {
+    position: relative;
+  }
+
+  .nav-link-underline::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    width: 100%;
+    height: 1px;
+    background-color: var(--arcane-gold);
+    transform: translateX(-50%) scaleX(0);
+    transform-origin: center;
+    transition: transform 0.4s cubic-bezier(0.33, 1, 0.68, 1);
+  }
+
+  .nav-link-underline:hover::after {
+    transform: translateX(-50%) scaleX(1);
+  }
+}
+
+@layer utilities {
+  .text-gradient-gold {
+    background: linear-gradient(135deg, #D4AF37 0%, #F0E6B8 50%, #D4AF37 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
